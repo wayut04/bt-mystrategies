@@ -1,0 +1,5 @@
+participant mystr_next
+participant mystr_notify_order
+participant mystr_notify_trade
+participant mystr_stop
+

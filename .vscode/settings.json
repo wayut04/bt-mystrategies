@@ -1,0 +1,9 @@
+{
+    "python.pythonPath": "/home/awahyudi/python-virtual-environments/env/bin/python",
+    "python.linting.pylintEnabled": false,
+    "python.linting.mypyEnabled": true,
+    "python.linting.enabled": true,
+    "files.associations": {
+        "*.scn.json": "jsonc"
+    }
+}
