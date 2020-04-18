@@ -29,8 +29,8 @@ class MyStrategy(bt.Strategy):
         self.inSellPosition = False
         self.live_data = False
         self.last2ST = 0
-        self.order_resubmit_buy = None
-        self.order_resubmit_sell = None
+        #self.order_resubmit_buy = None
+        #self.order_resubmit_sell = None
         #self.bar_executed = 0
 
         self.x = SuperTrend(self.datas[0],
@@ -75,11 +75,10 @@ class MyStrategy(bt.Strategy):
             self.log('Order Margin')
         elif order.status in [order.Rejected]:
             self.log('Order Rejected')
-            #self.order = self.submit(order)    #  re-submit (it won't work.. )
-            if order.isbuy(): 
-                self.order_resubmit_buy = order  # flag order_resubmit
-            elif order.issell():
-                self.order_resubmit_sell = order
+            # if order.isbuy(): 
+            #     self.order_resubmit_buy = order  # flag order_resubmit
+            # elif order.issell():
+            #     self.order_resubmit_sell = order
         else:
             self.log('Order status: Others')  # just to check if there's other status we missed..
 
@@ -113,11 +112,8 @@ class MyStrategy(bt.Strategy):
             )
 
         # Check if an order is pending ...
-        #if yes, we cannot send a 2nd one ..
         if self.order:
-            # check if it's rejected order
             self.log('next: Order is pending')  #: ', self.last_order_status)
-            # (should) resubmit order .. ?
             return
 
         # Check if we are in the market
@@ -125,35 +121,6 @@ class MyStrategy(bt.Strategy):
 
         #### simple strategi from cerebro (just for test.. )
         #if not self.position:
-        ''' Test strategy 
-        if not dpos:
-
-            # Not yet ... we MIGHT BUY if ...
-            if self.dataclose[0] > self.dataclose[-1]:
-                    # current close less than previous close
-
-                # BUY, BUY, BUY!!! (with default parameters)
-                self.log('BUY CREATE, %.2f' % self.dataclose[0])
-
-                # Keep track of the created order to avoid a 2nd order
-                if self.live_data or not self.params.mt5broker: 
-                    self.order = self.buy() 
-                    self.buy_order = self.order
-
-        else:
-
-            # Already in the market ... we might sell
-            if len(self) >= (self.bar_executed + 2):
-                # SELL, SELL, SELL!!! (with all possible default parameters)
-                self.log('SELL CREATE, %.2f' % self.dataclose[0])
-
-                # Keep track of the created order to avoid a 2nd order
-                # self.order = self.sell()
-                if self.live_data: 
-                    self.cancel(self.buy_order) # self.trade.tradeid)
-                elif not self.params.mt5broker:
-                    self.order = self.close() # self.trade.tradeid)
-        '''
         #### resubmitting last cancelled order
         #        if self.order_resubmit:
         #            time.sleep(0.25)
@@ -162,69 +129,75 @@ class MyStrategy(bt.Strategy):
         #            self.order_resubmit = 0  # neutralize it!
 
         ####
-        if not dpos:
-            # There is no current position... we MIGHT BUY if  .. ok,
+        if not self.position:
+            # There is no current position... we MIGHT BUY if 
             # this stcross only active on exactly the first the bar
             # add or condition if order is resubmitted (signalled by order.rejected)
-            if (self.stcross < 0) or (
-                (self.dataclose[0] > self.last2ST)
-                    and self.last2ST != 0) or self.order_resubmit_buy:
+            if (self.stcross < 0) or ((self.dataclose[0] > self.last2ST) and self.last2ST != 0):
+                    # or self.order_resubmit_buy:
 
                 self.log('BUY CREATE1, %.5f' % self.dataclose[0])
 
-                if self.live_data or not self.params.mt5broker:
-                    self.order = self.buy()
-                    self.buy_order = self.order
+                #if self.live_data or not self.params.mt5broker:
+                self.order = self.buy()
+                #self.buy_order = self.order
+                self.inBuyPosition = True
 
-                self.order_resubmit_buy = 0
+                # self.order_resubmit_buy = 0
                 
             # if supertrend  is crossing..
-            if (self.stcross > 0) or (
-                (self.dataclose[0] < self.last2ST)
-                    and self.last2ST != 0) or self.order_resubmit_sell:
+            if (self.stcross > 0) or ((self.dataclose[0] < self.last2ST) and self.last2ST != 0):
+                    # or self.order_resubmit_sell:
 
                 self.log('SELL CREATE1, %.5f' % self.dataclose[0])
 
-                if self.live_data or not self.params.mt5broker:
-                    self.order = self.sell()
-                    self.sell_order = self.order
+                #if self.live_data or not self.params.mt5broker:
+                self.order = self.sell()
+                #self.sell_order = self.order
 
-                self.order_resubmit_sell = 0
+                #self.order_resubmit_sell = 0
+                self.inSellPosition = True
 
         else:
             # Already in the market ..
             if self.inBuyPosition == True:
             #if dpos > 0:
                 # close position if..
-                if (self.stcross > 0 and dpos >= 0) or self.order_resubmit_sell:
+                if (self.stcross > 0): # and dpos > 0):
+                    # or self.order_resubmit_sell:
                     # CLOSE!!
                     self.log('SELL CREATE2, %.5f' % self.dataclose[0])
 
-                    if self.live_data:
-                        self.cancel(self.buy_order)  # self.trade.tradeid)
-                    elif not self.params.mt5broker:
-                        self.order = self.close()  # self.trade.tradeid)
+                    # if self.live_data:
+                    #     self.cancel(self.buy_order)  # self.trade.tradeid)
+                    # elif not self.params.mt5broker:
+                    #     self.order = self.close()  # self.trade.tradeid)
 
-                    self.order_resubmit_sell = 0
+                    self.order = self.close()
+
+                    # self.order_resubmit_sell = 0
                     self.inBuyPosition = False
-                    self.last2ST = self.x[-1]   # TODO: this probably doesn't really works.. fix this!!!
+                    self.last2ST = self.x[0]   # TODO: this probably doesn't really works.. fix this!!!
                                                 # create a function that captures the last ST position (right before crossing)
 
             if self.inSellPosition == True:
             #if dpos < 0:
                 # close position if..
-                if (self.stcross < 0 and dpos <= 0) or self.order_resubmit_buy:
+                if (self.stcross < 0): # and dpos <= 0): 
+                    #or self.order_resubmit_buy:
                     # CLOSE!!
                     self.log('BUY CREATE2, %.5f' % self.dataclose[0])
 
-                    if self.live_data:
-                        self.cancel(self.sell_order)  # self.trade.tradeid)
-                    elif not self.params.mt5broker:
-                        self.order = self.close()  # self.trade.tradeid)
+                    # if self.live_data:
+                    #     self.cancel(self.sell_order)  # self.trade.tradeid)
+                    # elif not self.params.mt5broker:
+                    #     self.order = self.close()  # self.trade.tradeid)
 
-                    self.order_resubmit_buy = 0
+                    self.order = self.close()
+
+                    # self.order_resubmit_buy = 0
                     self.inSellPosition = False
-                    self.last2ST = self.x[-1]
+                    self.last2ST = self.x[0]
 
     def notify_data(self, data, status, *args, **kwargs):
         dn = data._name
@@ -290,63 +263,73 @@ def runstrat(ppair='EURUSD',
         (bt.TimeFrame.Minutes, 'M'),
         (bt.TimeFrame.Days, 'Day'),
         (bt.TimeFrame.Weeks, 'W'),
-        (bt.TimeFrame.Months, 'M'),
+        (bt.TimeFrame.Months, 'MM'),
         (bt.TimeFrame.Years, 'Y'),
+        ('Hours', 'H'),
     ))
 
+    # convert 60M to 1H
+    if (ptf == bt.TimeFrame.Minutes) and (pcomp >= 60): 
+        pptf = 'Hours'
+        ppcomp = pcomp//60
+    else :
+        pptf = ptf
+        ppcomp = pcomp
+
     cerebro = bt.Cerebro()
-    store = MTraderStore(host=phost, debug=pdebug)
 
     if pmt5broker:
-        broker = store.getbroker(use_positions=p_usepositions)
+        store = MTraderStore(host=phost, debug=pdebug)
+        broker = store.getbroker(use_positions=p_usepositions)  #
         cerebro.setbroker(broker)
+
         data = store.getdata(dataname=ppair,
                              timeframe=ptf,
                              compression=pcomp,
                              fromdate=pstart_date,
                              historical=False)
-        '''
-        data = store.getdata(dataname=ppair,
-                             timeframe=bt.TimeFrame.Ticks,
-                             fromdate=pstart_date)
-        '''
-    elif pwrite_csv:
-        store.write_csv(symbol=ppair,
-                        timeframe=ptf,
-                        compression=pcomp,
-                        fromdate=pstart_date,
-                        todate=pend_date)
-        # convert to utf-8
+    else:
+        #elif not pmt5broker:
+        #store = MTraderStore(host=phost, debug=pdebug)
+        if not pread_csv:
+            store = MTraderStore(host=phost, debug=pdebug)
+            data = store.getdata(dataname=ppair,
+                                timeframe=ptf,
+                                compression=pcomp,
+                                fromdate=pstart_date,
+                                todate=pend_date,
+                                historical=True)
 
-        time.sleep(0.250)
-        cmd = f'iconv -f UTF-16 -t UTF-8 -o /home/awahyudi/Downloads/datas/{ppair}-{to_str[ptf]}{pcomp}-utf8.csv /media/winshare/{ppair}-{to_str[ptf]}{pcomp}.csv' 
-        os.system(cmd)
+            if pwrite_csv:
+                store.write_csv(symbol=ppair,
+                                timeframe=ptf,
+                                compression=pcomp,
+                                fromdate=pstart_date,
+                                todate=pend_date)
 
-    if pread_csv:
-        data = bt.feeds.GenericCSVData(
-            dataname=
-            f'/home/awahyudi/Downloads/datas/{ppair}-{to_str[ptf]}{pcomp}-utf8.csv',
-            compression=1,
-            timeframe=ptf,
-            fromdate=pstart_date,
-            todate=pend_date,
-            dtformat=('%Y.%m.%d %H:%M:%S\t'),
-            nullvalue=0.0,
-            datetime=0,
-            open=1,
-            high=2,
-            low=3,
-            close=4,
-            volume=5,
-            openinterest=-1)
-        
-    elif not pmt5broker:
-        data = store.getdata(dataname=ppair,
-                             timeframe=ptf,
-                             compression=pcomp,
-                             fromdate=pstart_date,
-                             todate=pend_date,
-                             historical=True)
+                time.sleep(0.250)
+                # convert to utf-8
+                cmd = f'iconv -f UTF-16 -t UTF-8 -o /home/awahyudi/Downloads/datas/{ppair}-{to_str[pptf]}{ppcomp}-utf8.csv /media/winshare/{ppair}-{to_str[pptf]}{ppcomp}.csv'
+
+                os.system(cmd)
+
+        else:  # read csv
+            data = bt.feeds.GenericCSVData(
+                dataname=
+                f'/home/awahyudi/Downloads/datas/{ppair}-{to_str[pptf]}{ppcomp}-utf8.csv',
+                compression=1,
+                timeframe=ptf,
+                fromdate=pstart_date,
+                todate=pend_date,
+                dtformat=('%Y.%m.%d %H:%M:%S\t'),
+                nullvalue=0.0,
+                datetime=0,
+                open=1,
+                high=2,
+                low=3,
+                close=4,
+                volume=5,
+                openinterest=-1)
 
     # add data
     if pcomp1:
@@ -357,10 +340,6 @@ def runstrat(ppair='EURUSD',
 
     # set sizer
     cerebro.addsizer(psizer_type, stake=pstake)
-
-    #----- Normal Strategy
-    #cerebro.addstrategy(MyStrategy, ma1period=5, ma2period=10, ma3period=17, atrperiod=10)
-    #    pstrategy,
 
     if optimize == True:
         strats = cerebro.optstrategy(pstrategy,
@@ -423,20 +402,20 @@ def runstrat(ppair='EURUSD',
             print('{}: {}'.format(k, v))
 
 
-runstrat(ppair='GBPUSD',
-         ptf =bt.TimeFrame.Minutes,
-         pcomp=1,
-         ptf1=bt.TimeFrame.Minutes,
-         pcomp1=1,
+runstrat(ppair='EURUSD',
+         ptf = bt.TimeFrame.Minutes,
+         pcomp= 240,
+         ptf1 = bt.TimeFrame.Minutes,
+         pcomp1 = 240,
          preplay=False, 
-         pstart_date=datetime.now() - timedelta(days=0) - timedelta(hours=4) - timedelta(minutes=5),
+         pstart_date=datetime.now() - timedelta(days=200) - timedelta(hours=4) - timedelta(minutes=5),
          pend_date=datetime.now() - timedelta(days=0) - timedelta(hours=4),
-         pread_csv=False,
+         pread_csv=True,
          pwrite_csv=False,
          phost='192.168.100.113',
          pdebug=True,
          pdoprint = True,
-         pmt5broker=True,
+         pmt5broker=False,
          pplot=True,
          p_usepositions = False,
          psizer_type=bt.sizers.FixedSize,
@@ -448,11 +427,11 @@ runstrat(ppair='GBPUSD',
          panalyze=False,
          pstrategy=MyStrategy,
          pstperiod=1,
-         pstmultiplier=2,
+         pstmultiplier=3,
          pstperiodmin=1,
-         pstperiodmax=6,
+         pstperiodmax=10,
          pstmultipliermin=1,
-         pstmultipliermax=6,
+         pstmultipliermax=10,
          optimize = False
         ) 
         # good for GBPUSD: (M1)
